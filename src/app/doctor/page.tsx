@@ -1,0 +1,486 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { useApp } from "@/lib/context";
+import { 
+  Stethoscope, Activity, FileText, Beaker, Pill, 
+  History, Search, Loader2, Save, Plus, AlertCircle,
+  CheckCircle2, Clock, User, ShieldAlert
+} from "lucide-react";
+import RoleGuard from "@/components/RoleGuard";
+import DoctorEpisodesTable from "./DoctorEpisodesTable";
+import Breadcrumbs from "@/components/Breadcrumbs";
+
+
+export default function DoctorPortal() {
+  return (
+    <RoleGuard allowedRole="doctor">
+      <DoctorContent />
+    </RoleGuard>
+  );
+}
+
+function DoctorContent() {
+  const { staffId } = useApp();
+  const [activeTab, setActiveTab] = useState('history');
+  const [episodeCode, setEpisodeCode] = useState('');
+  const [episode, setEpisode] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
+
+  // Form states
+  const [diagnosisNotes, setDiagnosisNotes] = useState("");
+  const [selectedTests, setSelectedTests] = useState<string[]>([]);
+  const [prescriptions, setPrescriptions] = useState([{ name: "", dosage: "", instructions: "" }]);
+  const [testResults, setTestResults] = useState<any[]>([]);
+  const [loadingTests, setLoadingTests] = useState(false);
+
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/episodes?code=${encodeURIComponent(episodeCode)}`);
+      const data = await res.json();
+      if (res.ok && data.episode) {
+        setEpisode(data.episode);
+        // Load existing diagnosis if any
+        fetchDiagnosis(data.episode.id);
+        // Load test results
+        fetchTestResults(data.episode.id);
+      } else {
+        alert("Episode not found");
+      }
+    } catch (err) {
+      alert("Search failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+const fetchDiagnosis = async (id: string) => {
+    try {
+      const res = await fetch(`/api/diagnoses?episodeId=${id}`);
+      const data = await res.json();
+      if (data.diagnoses?.[0]) {
+        setDiagnosisNotes(data.diagnoses[0].notes);
+      }
+    } catch (err) {}
+  };
+
+  const fetchTestResults = async (id: string) => {
+    setLoadingTests(true);
+    try {
+      const res = await fetch(`/api/tests?episodeId=${id}`);
+      const data = await res.json();
+      if (res.ok && data.tests) {
+        setTestResults(data.tests.filter((t: any) => t.results)); // Only completed results
+      } else {
+        setTestResults([]);
+      }
+    } catch (err) {
+      setTestResults([]);
+    } finally {
+      setLoadingTests(false);
+    }
+  };
+
+  const handleSaveDiagnosis = async () => {
+    if (!episode || !diagnosisNotes) return;
+    setSaving(true);
+    try {
+      const res = await fetch("/api/diagnoses", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          episodeId: episode.id,
+          doctorId: staffId || "demo-doc-1",
+          notes: diagnosisNotes
+        }),
+      });
+      if (res.ok) {
+        showSuccess("Diagnosis updated and saved to medical record.");
+      }
+    } catch (err) {
+      alert("Failed to save diagnosis");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRequestTests = async () => {
+    if (!episode || selectedTests.length === 0) return;
+    setSaving(true);
+    try {
+      for (const testType of selectedTests) {
+        await fetch("/api/tests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            episodeId: episode.id,
+            doctorId: staffId || "demo-doc-1",
+            testType
+          }),
+        });
+      }
+      showSuccess(`${selectedTests.length} Laboratory tests requested.`);
+      setSelectedTests([]);
+    } catch (err) {
+      alert("Failed to request tests");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSendPrescription = async () => {
+    if (!episode || prescriptions.some(p => !p.name || !p.dosage)) return;
+    setSaving(true);
+    try {
+      for (const p of prescriptions) {
+        await fetch("/api/prescriptions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            episodeId: episode.id,
+            doctorId: staffId || "demo-doc-1",
+            medication: p.name,
+            dosage: p.dosage,
+            instructions: p.instructions
+          }),
+        });
+      }
+      showSuccess("Prescription transmitted to Pharmacy.");
+      setPrescriptions([{ name: "", dosage: "", instructions: "" }]);
+    } catch (err) {
+      alert("Failed to send prescription");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const showSuccess = (msg: string) => {
+    setSuccessMsg(msg);
+    setTimeout(() => setSuccessMsg(""), 3000);
+  };
+
+  if (!episode) {
+    return (
+      <div>
+        <Breadcrumbs items={[{ label: 'Doctor Clinical Workspace' }]} />
+
+        <div className="container max-w-4xl mx-auto p-8 fade-in">
+          <div className="page-header-banner">
+            <h1 className="page-header-title">Doctor Consultation Workspace</h1>
+            <p className="page-header-subtitle">
+              Access live patient clinical queues, update diagnostic notes, order lab investigations, and transmit digital prescriptions.
+            </p>
+          </div>
+
+          <DoctorEpisodesTable
+            institutionId={null}
+            staffId={staffId}
+            onSelect={(ep: any) => {
+              setEpisode(ep);
+              fetchDiagnosis(ep.id);
+              fetchTestResults(ep.id);
+            }}
+            onSearchEpisode={handleSearch}
+            episodeCode={episodeCode}
+            setEpisodeCode={setEpisodeCode}
+            loading={loading}
+          />
+        </div>
+      </div>
+    );
+  } 
+
+  return (
+    <div className="container p-8 fade-in">
+      {/* Consultation Header */}
+      <div className="glass-card p-8 mb-10 border-blue-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex items-center gap-6">
+          <div className="w-20 h-20 bg-blue-100 rounded-3xl flex items-center justify-center shadow-inner relative">
+            <User className="w-10 h-10 text-blue-600" />
+            <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-emerald-500 rounded-full border-4 border-white flex items-center justify-center">
+              <Activity className="w-4 h-4 text-white" />
+            </div>
+          </div>
+          <div>
+            <div className="text-3xl font-black text-gray-900 mb-1">{episode.patients.first_name} {episode.patients.last_name}</div>
+            <div className="flex items-center gap-3 text-muted font-bold text-sm">
+              <span className="bg-gray-100 px-3 py-1 rounded-lg uppercase tracking-widest">{episode.episode_code}</span>
+              <span>•</span>
+              <span>{episode.patients.age} Years</span>
+              <span>•</span>
+              <span className="text-blue-600">{episode.patients.gender}</span>
+              <span>•</span>
+              <span className="bg-red-50 text-red-500 px-2 rounded-lg">{episode.patients.blood_type}</span>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => setEpisode(null)} className="btn btn-secondary shadow-sm">
+            End Session
+          </button>
+          <div className="p-3 px-6 bg-emerald-50 text-emerald-700 rounded-2xl font-bold flex items-center gap-2 border border-emerald-100">
+             <Clock className="w-4 h-4" />
+             Duration: 12:45
+          </div>
+        </div>
+      </div>
+
+      {successMsg && (
+        <div className="alert-modern alert-success mb-8 flex items-center gap-4 p-6 animate-slide-up">
+          <CheckCircle2 className="w-8 h-8" />
+          <span className="font-bold">{successMsg}</span>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        {/* Navigation Sidebar */}
+        <div className="flex flex-col gap-3">
+  <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<History />} label="Medical History" />
+  <TabButton active={activeTab === 'diagnosis'} onClick={() => setActiveTab('diagnosis')} icon={<FileText />} label="Diagnosis & Notes" />
+          <TabButton active={activeTab === 'tests'} onClick={() => setActiveTab('tests')} icon={<Beaker />} label="Test Orders" />
+          <TabButton active={activeTab === 'lab-results'} onClick={() => setActiveTab('lab-results')} icon={<CheckCircle2 />} label="Lab Results" />
+  <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<Pill />} label="Prescriptions" />
+        </div>
+
+        {/* Content Area */}
+        <div className="lg:col-span-3">
+          <div className="glass-card p-10 min-h-[500px] shadow-xl border-white/60">
+            {activeTab === 'history' && (
+              <div className="fade-in">
+                <h2 className="mb-8 flex items-center gap-3 text-gray-800">
+                  <History className="text-primary" /> Longitudinal Health Record
+                </h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
+                  <div className="p-6 bg-amber-50/50 rounded-3xl border border-amber-100">
+                    <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest mb-4">Underlying Conditions</h4>
+                    <p className="font-bold text-gray-700">{episode.patients.underlying_conditions || 'None Declared'}</p>
+                  </div>
+                  <div className="p-6 bg-red-50/50 rounded-3xl border border-red-100">
+                    <h4 className="text-xs font-black text-red-400 uppercase tracking-widest mb-4">Past Medical History</h4>
+                    <p className="font-bold text-gray-700">{episode.patients.medical_history || 'No recorded history'}</p>
+                  </div>
+                </div>
+
+                <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Historical Clinical Episodes</h4>
+                <div className="space-y-4">
+                  {/* Loaded from DB: show other episodes for the same patient */}
+                  {(() => {
+                    const patientEpisodes = (episode?.patients?.episodes ?? []).filter((ep: any) => ep.id !== episode?.id);
+                    if (!patientEpisodes.length) {
+                      return (
+                        <div className="py-10 text-center border-2 border-dashed border-gray-200 rounded-3xl">
+                          <h3 className="text-gray-400 mb-2">No Historical Episodes</h3>
+                          <p className="text-muted">No previous episodes found for this patient.</p>
+                        </div>
+                      );
+                    }
+                    return patientEpisodes.slice(0, 6).map((ep: any) => (
+                      <div key={ep.id} className="p-5 border border-border-color rounded-2xl bg-white/50 relative">
+                        <div className="absolute right-6 top-6 text-[10px] font-bold text-muted bg-gray-100 px-2 py-0.5 rounded">
+                          {ep.created_at ? new Date(ep.created_at).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '—'}
+                        </div>
+                        <h5 className="font-black mb-1">{ep.episode_code}</h5>
+                        <p className="text-sm text-muted">
+                          Status: {ep.status || 'unknown'}
+                        </p>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            )}
+
+            {activeTab === 'diagnosis' && (
+              <div className="fade-in">
+                <h2 className="mb-8 flex items-center gap-3 text-gray-800">
+                  <FileText className="text-primary" /> Clinical Assessment
+                </h2>
+                <div className="form-group mb-8">
+                  <label className="form-label">Diagnosis & Clinical Notes *</label>
+                  <textarea 
+                    value={diagnosisNotes}
+                    onChange={e => setDiagnosisNotes(e.target.value)}
+                    placeholder="Enter thorough clinical observations, diagnosis, and plan..." 
+                    className="textarea-modern h-64 p-6"
+                  />
+                </div>
+                <button 
+                  onClick={handleSaveDiagnosis}
+                  disabled={saving || !diagnosisNotes}
+                  className="btn btn-primary px-10 py-4 font-bold flex items-center gap-3 shadow-lg"
+                >
+                  {saving ? <Loader2 className="animate-spin" /> : <Save className="w-5 h-5" />}
+                  Save to National Record
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'tests' && (
+              <div className="fade-in">
+                <h2 className="mb-8 flex items-center gap-3 text-gray-800">
+                  <Beaker className="text-primary" /> Test Orders
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+                  {['Full Blood Count', 'Malaria RDT', 'Liver Function Test', 'Urinalysis', 'Chest X-Ray', 'MRI Lumbar Spine'].map(test => (
+                    <label key={test} className={`p-5 rounded-2xl border-2 flex items-center gap-4 cursor-pointer transition-all ${
+                      selectedTests.includes(test) ? 'border-primary bg-blue-50/50 shadow-md' : 'border-gray-100 hover:border-blue-200'
+                    }`}>
+                      <input 
+                        type="checkbox" 
+                        className="w-5 h-5 text-primary rounded" 
+                        checked={selectedTests.includes(test)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSelectedTests([...selectedTests, test]);
+                          else setSelectedTests(selectedTests.filter(t => t !== test));
+                        }}
+                      />
+                      <span className="font-bold text-gray-700">{test}</span>
+                    </label>
+                  ))}
+                </div>
+                <button 
+                  onClick={handleRequestTests}
+                  disabled={saving || selectedTests.length === 0}
+                  className="btn btn-primary px-10 py-4 font-bold flex items-center gap-3 shadow-lg"
+                >
+                  {saving ? <Loader2 className="animate-spin" /> : <Plus className="w-5 h-5" />}
+                  Transmit Orders ({selectedTests.length})
+                </button>
+              </div>
+            )}
+
+            {activeTab === 'lab-results' && (
+              <div className="fade-in">
+                <h2 className="mb-8 flex items-center gap-3 text-gray-800">
+                  <CheckCircle2 className="text-emerald-500" /> Laboratory Results
+                </h2>
+                {loadingTests ? (
+                  <div className="py-20 text-center">
+                    <Loader2 className="w-12 h-12 animate-spin text-emerald-500 mx-auto mb-4" />
+                    <p className="text-muted">Loading lab results...</p>
+                  </div>
+                ) : testResults.length === 0 ? (
+                  <div className="py-20 text-center border-2 border-dashed border-gray-200 rounded-3xl">
+                    <Beaker className="w-16 h-16 text-gray-200 mx-auto mb-6" />
+                    <h3 className="text-gray-400 mb-2">No Laboratory Results</h3>
+                    <p className="text-muted">No test results available for this episode yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {testResults.map((test: any) => (
+                      <div key={test.id} className="glass-card p-8 border-emerald-100 hover:shadow-xl transition-all">
+                        <div className="flex justify-between items-start mb-6">
+                          <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center">
+                              <CheckCircle2 className="w-6 h-6 text-emerald-500" />
+                            </div>
+                            <div>
+                              <h4 className="font-black text-xl text-gray-900">{test.test_type}</h4>
+                              <p className="text-sm text-emerald-600 font-semibold">Completed: {new Date(test.updated_at || test.created_at).toLocaleDateString()}</p>
+                            </div>
+                          </div>
+                          <div className="badge-modern badge-success px-4 py-2">Verified</div>
+                        </div>
+                        <div className="bg-white/70 p-6 rounded-2xl border-l-4 border-emerald-400">
+                          <h5 className="font-bold text-lg mb-3 text-gray-800">Results</h5>
+                          <pre className="whitespace-pre-wrap text-sm bg-emerald-50 p-4 rounded-xl font-mono border">{test.results}</pre>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeTab === 'prescription' && (
+              <div className="fade-in">
+                <h2 className="mb-8 flex items-center gap-3 text-gray-800">
+                  <Pill className="text-primary" /> Pharmacological Treatment
+                </h2>
+                <div className="space-y-6 mb-10">
+                  {prescriptions.map((p, i) => (
+                    <div key={i} className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end animate-slide-right">
+                      <div className="form-group md:col-span-1">
+                        <label className="text-[10px] font-black text-muted uppercase mb-2 block">Medication Name</label>
+                        <input 
+                          value={p.name}
+                          onChange={e => {
+                            const newP = [...prescriptions];
+                            newP[i].name = e.target.value;
+                            setPrescriptions(newP);
+                          }}
+                          className="input-modern" placeholder="E.g., Coartem" 
+                        />
+                      </div>
+                      <div className="form-group md:col-span-1">
+                        <label className="text-[10px] font-black text-muted uppercase mb-2 block">Dosage Regime</label>
+                        <input 
+                          value={p.dosage}
+                          onChange={e => {
+                            const newP = [...prescriptions];
+                            newP[i].dosage = e.target.value;
+                            setPrescriptions(newP);
+                          }}
+                          className="input-modern" placeholder="1x3 for 3 Days" 
+                        />
+                      </div>
+                      <div className="form-group md:col-span-1">
+                        <label className="text-[10px] font-black text-muted uppercase mb-2 block">Instructions</label>
+                        <input 
+                          value={p.instructions}
+                          onChange={e => {
+                            const newP = [...prescriptions];
+                            newP[i].instructions = e.target.value;
+                            setPrescriptions(newP);
+                          }}
+                          className="input-modern" placeholder="Take after food" 
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => setPrescriptions([...prescriptions, { name: "", dosage: "", instructions: "" }])}
+                  className="btn bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 font-bold mb-10"
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Add Additional Medication
+                </button>
+                <div className="border-t border-border-color pt-8">
+                  <button 
+                    onClick={handleSendPrescription}
+                    disabled={saving || prescriptions.some(p => !p.name)}
+                    className="btn btn-primary px-10 py-4 font-bold flex items-center gap-3 shadow-lg"
+                  >
+                    {saving ? <Loader2 className="animate-spin" /> : <ShieldAlert className="w-5 h-5" />}
+                    Authorize & Transmit to Pharmacy
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TabButton({ active, onClick, icon, label }: any) {
+  return (
+    <button 
+      onClick={onClick}
+      className={`p-6 rounded-3xl flex items-center gap-4 font-bold transition-all border-2 ${
+        active 
+          ? 'bg-blue-600 text-white border-blue-600 shadow-xl -translate-r-2' 
+          : 'bg-white/50 text-gray-500 border-white/50 hover:bg-white hover:border-blue-100 hover:text-gray-700'
+      }`}
+    >
+      <div className={active ? 'text-white' : 'text-primary'}>{icon}</div>
+      {label}
+    </button>
+  );
+}
