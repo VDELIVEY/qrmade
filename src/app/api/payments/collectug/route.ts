@@ -4,6 +4,8 @@ import { requireSession } from '@/lib/session';
 import { supabaseServer as supabase } from '@/lib/supabase';
 import { generateCode } from '@/lib/auth';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     const auth = requireSession(req, ['cashier', 'admin', 'ministry', 'superadmin']);

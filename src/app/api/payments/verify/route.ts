@@ -3,6 +3,8 @@ import { CollectUGClient } from '@/lib/collectug';
 import { requireSession } from '@/lib/session';
 import { supabaseServer as supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   try {
     const auth = requireSession(req, ['cashier', 'admin', 'ministry', 'superadmin']);
