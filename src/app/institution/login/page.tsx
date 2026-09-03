@@ -30,7 +30,7 @@ export default function InstitutionLoginPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Authentication failed');
 
-      login('admin', data.institutionId, null, data.name);
+      login('admin', data.institutionId, undefined, data.name);
       window.location.href = '/institution';
     } catch (err: any) {
       setError(err?.message || 'Login failed');
