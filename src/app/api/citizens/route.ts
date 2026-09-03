@@ -1,19 +1,33 @@
 import { NextResponse } from 'next/server';
 import { supabaseServer as supabase } from '@/lib/supabase';
-import { validateRequired, validateNumber, validateEnum, handleApiError } from '@/lib/validation';
-import { generateCode } from '@/lib/auth';
+import { validateRequired, validateEnum, handleApiError } from '@/lib/validation';
+import { generateCode, hashPassword } from '@/lib/auth';
 import { requireSession } from '@/lib/session';
+
+// Compute age from an ISO date string (YYYY-MM-DD)
+function ageFromDob(dob: string): number {
+  const birth = new Date(dob);
+  if (isNaN(birth.getTime())) return 0;
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return Math.max(0, age);
+}
 
 export async function POST(request: Request) {
   try {
     const auth = requireSession(request, ['ministry', 'superadmin']);
     if (auth.response) return auth.response;
     const body = await request.json();
-    const validation = validateRequired(body, ['firstName', 'lastName', 'age', 'gender']);
+    const validation = validateRequired(body, ['firstName', 'lastName', 'dob', 'gender']);
     if (validation) return validation;
 
-    const ageErr = validateNumber(body.age, 'age', 0, 150);
-    if (ageErr) return ageErr;
+    // Validate dob format (YYYY-MM-DD)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(body.dob)) {
+      return NextResponse.json({ error: 'dob must be in YYYY-MM-DD format' }, { status: 400 });
+    }
+    const age = ageFromDob(body.dob);
 
     const genderErr = validateEnum(body.gender, 'gender', ['Male', 'Female', 'Other']);
     if (genderErr) return genderErr;
@@ -25,6 +39,11 @@ export async function POST(request: Request) {
 
     const qr_code = generateCode('PAT', 10);
 
+    let security_pin_hash: string | null = null;
+    if (body.securityPin && /^\d{4}$/.test(body.securityPin)) {
+      security_pin_hash = await hashPassword(body.securityPin);
+    }
+
     const { data, error } = await supabase
       .from('patients')
       .insert([
@@ -32,12 +51,14 @@ export async function POST(request: Request) {
           qr_code,
           first_name: body.firstName.trim(),
           last_name: body.lastName.trim(),
-          age: parseInt(body.age),
+          dob: body.dob,
+          age,
           gender: body.gender,
           blood_type: body.bloodType || 'Unknown',
           underlying_conditions: body.conditions?.trim() || null,
           medical_history: body.history?.trim() || null,
           allergies: body.allergies?.trim() || null,
+          security_pin_hash,
         },
       ])
       .select()

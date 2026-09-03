@@ -38,12 +38,13 @@ function RegisterCitizenContent() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
-    age: "",
+    dob: "",
     gender: "",
     bloodType: "",
     conditions: "",
     history: "",
     allergies: "",
+    securityPin: "",
   });
 
   const [loading, setLoading] = useState(false);
@@ -132,7 +133,7 @@ function RegisterCitizenContent() {
       const res = await fetch("/api/citizens", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({ ...formData, securityPin: formData.securityPin }),
       });
 
       const data = await res.json();
@@ -153,12 +154,13 @@ function RegisterCitizenContent() {
     setFormData({
       firstName: "",
       lastName: "",
-      age: "",
+      dob: "",
       gender: "",
       bloodType: "",
       conditions: "",
       history: "",
       allergies: "",
+      securityPin: "",
     });
     setError("");
     setSuccessData(null);
@@ -171,6 +173,7 @@ function RegisterCitizenContent() {
     first_name: successData?.first_name || formData.firstName,
     last_name: successData?.last_name || formData.lastName,
     blood_type: successData?.blood_type || formData.bloodType,
+    dob: successData?.dob || formData.dob,
     id: successData?.id,
   };
 
@@ -435,18 +438,15 @@ function RegisterCitizenContent() {
               </div>
 
               <div className="form-group">
-                <label className="form-label">Age *</label>
+                <label className="form-label">Date of Birth *</label>
                 <div className="relative">
                   <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
                   <input
-                    type="number"
+                    type="date"
                     required
-                    min="0"
-                    max="150"
                     className="input-modern pl-12"
-                    placeholder="Years"
-                    value={formData.age}
-                    onChange={(e) => setFormData({ ...formData, age: e.target.value })}
+                    value={formData.dob}
+                    onChange={(e) => setFormData({ ...formData, dob: e.target.value })}
                     disabled={loading}
                   />
                 </div>
@@ -477,6 +477,27 @@ function RegisterCitizenContent() {
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div className="form-group">
+                <label className="form-label">Security PIN (4 digits) *</label>
+                <div className="relative">
+                  <Shield className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted" />
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    required
+                    className="input-modern pl-12"
+                    placeholder="••••"
+                    value={formData.securityPin}
+                    onChange={(e) => setFormData({ ...formData, securityPin: e.target.value.replace(/\D/g, '').slice(0, 4) })}
+                    disabled={loading}
+                  />
+                </div>
+                <div className="text-muted" style={{ fontSize: 12, marginTop: 4 }}>
+                  This PIN will be required to access the patient's medical record.
+                </div>
+              </div>
+
               <div className="form-group">
                 <label className="form-label">Blood Type</label>
                 <div className="relative">
@@ -635,12 +656,8 @@ function RegisterCitizenContent() {
 
                     <div className="id-card-fields">
                       <div className="id-card-field">
-                        <div className="id-card-field-label">Gender</div>
-                        <div className="id-card-field-value">{patientDisplay.gender || "—"}</div>
-                      </div>
-                      <div className="id-card-field">
-                        <div className="id-card-field-label">Age</div>
-                        <div className="id-card-field-value">{patientDisplay.age || "—"} yrs</div>
+                        <div className="id-card-field-label">Date of Birth</div>
+                        <div className="id-card-field-value">{patientDisplay.dob || patientDisplay.age || "—"}</div>
                       </div>
                       <div className="id-card-field" style={{ gridColumn: "1 / -1" }}>
                         <div className="id-card-field-label">Registry ID</div>

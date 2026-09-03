@@ -215,8 +215,8 @@ function MinistryContent() {
 
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-lg mb-6">
                 <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100">
-                  <div className="text-[10px] font-black text-muted uppercase tracking-wider">Age</div>
-                  <div className="font-bold text-gray-900 mt-1">{foundPatient.age ?? "—"}</div>
+                  <div className="text-[10px] font-black text-muted uppercase tracking-wider">Date of Birth</div>
+                  <div className="font-bold text-gray-900 mt-1">{foundPatient.dob ? new Date(foundPatient.dob).toLocaleDateString() : "—"}</div>
                 </div>
                 <div className="bg-gray-50/80 p-3 rounded-xl border border-gray-100">
                   <div className="text-[10px] font-black text-muted uppercase tracking-wider">Gender</div>

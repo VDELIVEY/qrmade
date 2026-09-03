@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useApp } from "@/lib/context";
 import RoleGuard from "@/components/RoleGuard";
 import { 
@@ -28,6 +28,7 @@ function LabContent() {
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
+  const resultsRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
   const fetchQueue = useCallback(async (code?: string) => {
     setLoadingList(true);
@@ -58,7 +59,6 @@ function LabContent() {
       const data = await res.json();
       if (res.ok) {
         setTestRequests(data.tests || []);
-        // Initialize results state
         const initialResults: Record<string, string> = {};
         data.tests.forEach((t: any) => {
           if (t.results) initialResults[t.id] = t.results;
@@ -69,6 +69,15 @@ function LabContent() {
       setTestRequests([]);
     } finally {
       setLoadingDetail(false);
+      setTimeout(() => {
+        Object.keys(resultsRefs.current).forEach(id => {
+          const el = resultsRefs.current[id];
+          if (el) {
+            el.style.height = 'auto';
+            el.style.height = el.scrollHeight + 'px';
+          }
+        });
+      }, 50);
     }
   };
 
@@ -128,7 +137,7 @@ function LabContent() {
                </div>
                <div>
                  <h2 className="text-2xl font-black">{selectedEpisode.patients?.first_name} {selectedEpisode.patients?.last_name}</h2>
-                 <p className="text-muted font-mono">{selectedEpisode.episode_code} • {selectedEpisode.patients?.age}Y / {selectedEpisode.patients?.gender}</p>
+                  <p className="text-muted font-mono">{selectedEpisode.episode_code} • {selectedEpisode.patients?.dob ? new Date(selectedEpisode.patients.dob).toLocaleDateString() : '—'} / {selectedEpisode.patients?.gender}</p>
                </div>
             </div>
             <div className="badge-modern badge-primary uppercase tracking-widest px-6 py-2">Queue Active</div>
@@ -172,11 +181,19 @@ function LabContent() {
                       <div className="form-group mb-6">
                         <label className="text-[10px] font-black text-muted uppercase tracking-widest mb-3 block">Investigation Results / Observations</label>
                         <textarea 
+                          ref={el => { resultsRefs.current[test.id] = el; }}
                           value={results[test.id] || ""}
-                          onChange={(e) => setResults({ ...results, [test.id]: e.target.value })}
-                          className="textarea-modern h-32 p-4 text-sm"
+                          onChange={(e) => {
+                            setResults({ ...results, [test.id]: e.target.value });
+                            if (resultsRefs.current[test.id]) {
+                              resultsRefs.current[test.id]!.style.height = 'auto';
+                              resultsRefs.current[test.id]!.style.height = resultsRefs.current[test.id]!.scrollHeight + 'px';
+                            }
+                          }}
+                          className="textarea-modern w-full p-4 text-sm"
                           placeholder="Record findings, measurements, and clinical observations..."
                           disabled={!!test.results}
+                          style={{ minHeight: '4rem', resize: 'vertical' }}
                         />
                       </div>
 

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Shield, Activity, Lock, HeartHandshake } from 'lucide-react';
 
 const Footer = () => {
@@ -9,7 +10,9 @@ const Footer = () => {
           {/* Brand & Overview */}
           <div className="footer-section">
             <div className="flex items-center gap-2 mb-4">
-              <span className="nav-brand-mark"><Shield size={18} /></span>
+              <span className="nav-brand-mark">
+                <Image src="/logo.png" alt="MedQR Logo" width={38} height={38} />
+              </span>
               <span style={{ color: 'white', fontWeight: 800, fontSize: '1.2rem', fontFamily: 'Manrope, sans-serif' }}>
                 MedQR
               </span>

@@ -8,9 +8,9 @@ export const metadata: Metadata = {
   title: 'MedQR',
   applicationName: 'MedQR',
   icons: {
-    icon: '/icon.svg',
-    shortcut: '/icon.svg',
-    apple: '/icon.svg',
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
   },
   description: 'A comprehensive QR-based medical system for national health logistics and patient care.',
 }

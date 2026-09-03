@@ -14,6 +14,7 @@ type Props = {
 
 export default function DoctorEpisodesTable({
   institutionId,
+  staffId,
   onSelect,
   onSearchEpisode,
   episodeCode,
@@ -22,6 +23,7 @@ export default function DoctorEpisodesTable({
 }: Props) {
   const [episodes, setEpisodes] = useState<any[]>([]);
   const [loadingEpisodes, setLoadingEpisodes] = useState(false);
+  const [filterMode, setFilterMode] = useState<'mine' | 'all'>('mine');
 
   useEffect(() => {
     let cancelled = false;
@@ -32,6 +34,8 @@ export default function DoctorEpisodesTable({
         const params = new URLSearchParams();
         params.set('date', 'today');
         if (institutionId) params.set('institutionId', institutionId);
+        // Filter by assigned doctor when in "mine" mode
+        if (filterMode === 'mine' && staffId) params.set('assignedDoctorId', staffId);
 
         const res = await fetch(`/api/episodes?${params.toString()}`);
         const json = await res.json();
@@ -49,7 +53,7 @@ export default function DoctorEpisodesTable({
     return () => {
       cancelled = true;
     };
-  }, [institutionId]);
+  }, [institutionId, staffId, filterMode]);
 
   return (
     <div>
@@ -86,14 +90,48 @@ export default function DoctorEpisodesTable({
       <div className="glass-card p-10 max-w-4xl mx-auto shadow-2xl">
         <div className="flex items-center justify-between mb-6">
           <h2 className="flex items-center gap-3">Today’s Episodes</h2>
-          <div className="text-muted text-sm">{loadingEpisodes ? 'Loading...' : `${episodes.length} found`}</div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={() => setFilterMode('mine')}
+              className="btn"
+              style={{
+                padding: '0.4rem 0.9rem',
+                fontSize: '0.8rem',
+                background: filterMode === 'mine' ? 'var(--primary)' : 'rgba(8,127,121,0.08)',
+                color: filterMode === 'mine' ? 'white' : 'var(--primary-dark)',
+                fontWeight: 700,
+                borderRadius: '8px',
+              }}
+            >
+              My Queue
+            </button>
+            <button
+              onClick={() => setFilterMode('all')}
+              className="btn"
+              style={{
+                padding: '0.4rem 0.9rem',
+                fontSize: '0.8rem',
+                background: filterMode === 'all' ? 'var(--primary)' : 'rgba(8,127,121,0.08)',
+                color: filterMode === 'all' ? 'white' : 'var(--primary-dark)',
+                fontWeight: 700,
+                borderRadius: '8px',
+              }}
+            >
+              All Episodes
+            </button>
+          </div>
+        </div>
+
+        <div className="text-muted text-sm mb-4">
+          {loadingEpisodes ? 'Loading...' : `${episodes.length} found`}
+          {filterMode === 'mine' && staffId ? ' — filtered to your assigned queue' : ''}
         </div>
 
         {loadingEpisodes ? (
           <div className="py-10 text-center text-muted">Loading episodes...</div>
         ) : episodes.length === 0 ? (
           <div className="py-10 text-center border-2 border-dashed border-gray-200 rounded-3xl text-muted">
-            No episodes today.
+            {filterMode === 'mine' ? 'No episodes assigned to you today.' : 'No episodes today.'}
           </div>
         ) : (
           <div style={{ overflowX: 'auto' }}>
@@ -151,4 +189,3 @@ export default function DoctorEpisodesTable({
     </div>
   );
 }
-

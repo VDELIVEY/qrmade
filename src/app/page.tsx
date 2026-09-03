@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import {
   Shield,
   QrCode,
@@ -102,13 +103,13 @@ export default function Home() {
             {/* HERO CARD / PREVIEW */}
             <div className="glass-card" style={{ padding: '2rem', borderRadius: '24px' }}>
               <div className="flex items-center justify-between mb-6 pb-4 border-b border-border-color">
-                <div className="flex items-center gap-3">
-                  <div className="nav-brand-mark">
-                    <Shield size={18} />
+                <div className="flex items-center gap-4">
+                  <div className="nav-brand-mark" style={{ width: 56, height: 56, borderRadius: 14 }}>
+                    <Image src="/logo.png" alt="MedQR Logo" width={56} height={56} priority />
                   </div>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: '1.1rem' }}>National Health Pass</div>
-                    <div className="text-muted" style={{ fontSize: '0.825rem' }}>Verifiable Digital Health Record</div>
+                    <div style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.02em' }}>National Health Pass</div>
+                    <div className="text-muted" style={{ fontSize: '0.9rem' }}>Verifiable Digital Health Record</div>
                   </div>
                 </div>
                 <div className="badge-modern badge-primary">

@@ -15,18 +15,101 @@ export async function POST(request: Request) {
     if (!plainPassword || plainPassword.length < 12) {
       return NextResponse.json({ error: 'MEDQR_SEED_PASSWORD must be configured with at least 12 characters' }, { status: 500 });
     }
-    // Check if superadmin already exists
-    const { data: existing } = await supabase
+    if (!plainPassword || plainPassword.length < 12) {
+      return NextResponse.json({ error: 'MEDQR_SEED_PASSWORD must be configured with at least 12 characters' }, { status: 500 });
+    }
+
+    // 1. Find or create default institution for the superadmin
+    let inst = null;
+    let instError = null;
+    const instResult = await supabase
+      .from('institutions')
+      .select('id, name, portal_key')
+      .eq('portal_key', 'MINISTRY-HQ-001')
+      .single();
+
+    if (instResult.error?.code === 'PGRST116') {
+      const insertResult = await supabase
+        .from('institutions')
+        .insert([
+          {
+            name: 'Ministry of Health HQ',
+            location: 'Central',
+            owner: 'System Administrator',
+            license_number: 'LIC-MOH-001',
+            services: ['Administration', 'Oversight'],
+            portal_key: 'MINISTRY-HQ-001',
+            is_active: true,
+          },
+        ])
+        .select()
+        .single();
+      inst = insertResult.data;
+      instError = insertResult.error;
+    } else {
+      inst = instResult.data;
+      instError = instResult.error;
+    }
+
+    if (instError || !inst) {
+      return NextResponse.json(
+        { error: 'Failed to prepare seed institution: ' + (instError?.message || 'unknown') },
+        { status: 500 }
+      );
+    }
+
+    // 2. Find or create superadmin staff record
+    let staffRec = null;
+    let staffError = null;
+    const staffResult = await supabase
+      .from('staff')
+      .select('id, full_name')
+      .eq('institution_id', inst.id)
+      .eq('occupation', 'superadmin')
+      .eq('is_active', true)
+      .single();
+
+    if (staffResult.error?.code === 'PGRST116') {
+      const insertStaff = await supabase
+        .from('staff')
+        .insert([
+          {
+            institution_id: inst.id,
+            full_name: 'System Administrator',
+            age: 30,
+            gender: 'Other',
+            occupation: 'superadmin',
+            is_active: true,
+          },
+        ])
+        .select()
+        .single();
+      staffRec = insertStaff.data;
+      staffError = insertStaff.error;
+    } else {
+      staffRec = staffResult.data;
+      staffError = staffResult.error;
+    }
+
+    if (staffError || !staffRec) {
+      return NextResponse.json(
+        { error: 'Failed to prepare seed staff: ' + (staffError?.message || 'unknown') },
+        { status: 500 }
+      );
+    }
+
+    // 3. Find or create/update credentials
+    const credCheck = await supabase
       .from('staff_credentials')
       .select('username')
       .eq('username', 'superadmin')
       .single();
 
-    if (existing) {
-      const passwordHash = await hashPassword(plainPassword);
+    const passwordHash = await hashPassword(plainPassword);
+    if (credCheck.data) {
       const { error: resetError } = await supabase
         .from('staff_credentials')
-        .update({ password_hash: passwordHash, last_login: null })
+        .update({ password_hash: passwordHash, last_login: null, staff_id: staffRec.id })
         .eq('username', 'superadmin');
       if (resetError) {
         return NextResponse.json({ error: 'Failed to reset existing superadmin password' }, { status: 500 });
@@ -36,56 +119,6 @@ export async function POST(request: Request) {
         { status: 200 }
       );
     }
-
-    // 1. Create default institution for the superadmin
-    const { data: inst, error: instError } = await supabase
-      .from('institutions')
-      .insert([
-        {
-          name: 'Ministry of Health HQ',
-          location: 'Central',
-          owner: 'System Administrator',
-          license_number: 'LIC-MOH-001',
-          services: ['Administration', 'Oversight'],
-          portal_key: 'MINISTRY-HQ-001',
-          is_active: true,
-        },
-      ])
-      .select()
-      .single();
-
-    if (instError || !inst) {
-      return NextResponse.json(
-        { error: 'Failed to create seed institution: ' + (instError?.message || 'unknown') },
-        { status: 500 }
-      );
-    }
-
-    // 2. Create superadmin staff record
-    const { data: staffRec, error: staffError } = await supabase
-      .from('staff')
-      .insert([
-        {
-          institution_id: inst.id,
-          full_name: 'System Administrator',
-          age: 30,
-          gender: 'Other',
-          occupation: 'superadmin',
-          is_active: true,
-        },
-      ])
-      .select()
-      .single();
-
-    if (staffError || !staffRec) {
-      return NextResponse.json(
-        { error: 'Failed to create seed staff: ' + (staffError?.message || 'unknown') },
-        { status: 500 }
-      );
-    }
-
-    // 3. Create credentials
-    const passwordHash = await hashPassword(plainPassword);
 
     const { error: credError } = await supabase
       .from('staff_credentials')

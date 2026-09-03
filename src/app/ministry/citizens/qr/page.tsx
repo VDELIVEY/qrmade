@@ -239,9 +239,9 @@ function CitizenQRLookup() {
                           <div className="id-card-field-value">{patient.gender || "—"}</div>
                         </div>
                         <div className="id-card-field">
-                          <div className="id-card-field-label">Age</div>
-                          <div className="id-card-field-value">{patient.age || "—"} yrs</div>
-                        </div>
+                           <div className="id-card-field-label">Date of Birth</div>
+                           <div className="id-card-field-value">{patient.dob || "—"}</div>
+                         </div>
                         <div className="id-card-field" style={{ gridColumn: "1 / -1" }}>
                           <div className="id-card-field-label">Registry ID</div>
                           <div className="id-card-field-value id-card-mono">{patient.qr_code || "—"}</div>
@@ -329,8 +329,8 @@ function CitizenQRLookup() {
                           <div className="id-card-field-value">{patient.gender || "—"}</div>
                         </div>
                         <div className="id-card-field">
-                          <div className="id-card-field-label">Age</div>
-                          <div className="id-card-field-value">{patient.age || "—"} yrs</div>
+                          <div className="id-card-field-label">Date of Birth</div>
+                          <div className="id-card-field-value">{patient.dob || patient.age || "—"}</div>
                         </div>
                         <div className="id-card-field" style={{ gridColumn: "1 / -1" }}>
                           <div className="id-card-field-label">Registry ID</div>

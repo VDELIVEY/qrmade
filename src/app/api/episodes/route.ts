@@ -25,6 +25,8 @@ export async function POST(request: Request) {
           institution_id: institutionId,
           status: 'created',
           receptionist_id: auth.session.staffId,
+          assigned_doctor_id: body.assignedDoctorId || null,
+          chief_complaint: body.chiefComplaint || null,
         },
       ])
       .select('*, patients(*), institutions(*)')
@@ -50,6 +52,7 @@ export async function GET(request: Request) {
     const name = searchParams.get('name');
     const patientId = searchParams.get('patientId');
     const institutionId = searchParams.get('institutionId');
+    const assignedDoctorId = searchParams.get('assignedDoctorId');
     const status = searchParams.get('status');
 
     if (code) {
@@ -99,6 +102,7 @@ export async function GET(request: Request) {
     if (patientId) query = query.eq('patient_id', patientId);
     if (institutionId) query = query.eq('institution_id', institutionId);
     if (auth.session.institutionId) query = query.eq('institution_id', auth.session.institutionId);
+    if (assignedDoctorId) query = query.eq('assigned_doctor_id', assignedDoctorId);
     if (status) query = query.eq('status', status);
 
     // Optional filter: date=today (local server time)
@@ -153,9 +157,13 @@ export async function PATCH(request: Request) {
     };
     if (!transitions[current.status]?.includes(body.status)) return NextResponse.json({ error: `Invalid episode transition from ${current.status} to ${body.status}` }, { status: 409 });
 
+    const updates: Record<string, any> = { status: body.status };
+    if (body.assignedDoctorId) updates.assigned_doctor_id = body.assignedDoctorId;
+    if (body.referralNote !== undefined) updates.referral_note = body.referralNote;
+
     const { data, error } = await supabase
       .from('episodes')
-      .update({ status: body.status })
+      .update(updates)
       .eq('id', body.episodeId)
       .select('*, patients(*), institutions(*)')
       .single();
@@ -165,7 +173,7 @@ export async function PATCH(request: Request) {
     }
 
     return NextResponse.json({ success: true, episode: data });
-  } catch (err) {
-    return handleApiError(err, 'Failed to update episode');
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Failed to update episode: ' + err.message }, { status: 500 });
   }
 }

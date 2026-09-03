@@ -3,16 +3,16 @@
 import React, { useState } from 'react';
 import { useApp } from '@/lib/context';
 import { useRouter } from 'next/navigation';
-import { Shield, Lock, User, Loader2, AlertCircle, ShieldAlert } from 'lucide-react';
+import { Building2, Loader2, AlertCircle, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import Breadcrumbs from '@/components/Breadcrumbs';
 
-export default function MinistryLoginPage() {
+export default function InstitutionLoginPage() {
   const { login } = useApp();
   const router = useRouter();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [institutionName, setInstitutionName] = useState('');
+  const [portalKey, setPortalKey] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -20,18 +20,18 @@ export default function MinistryLoginPage() {
     e.preventDefault();
     setError('');
     setLoading(true);
+
     try {
-      const res = await fetch('/api/staff/login', {
+      const res = await fetch('/api/institutions/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ name: institutionName, portalKey }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Invalid credentials');
-      if (data.role !== 'ministry' && data.role !== 'superadmin') throw new Error('Not authorized for Ministry Control portal');
+      if (!res.ok) throw new Error(data.error || 'Authentication failed');
 
-      login('ministry', undefined, data.staffId, data.name);
-      window.location.href = '/ministry';
+      login('admin', data.institutionId, null, data.name);
+      window.location.href = '/institution';
     } catch (err: any) {
       setError(err?.message || 'Login failed');
     } finally {
@@ -41,16 +41,16 @@ export default function MinistryLoginPage() {
 
   return (
     <div>
-      <Breadcrumbs items={[{ label: 'Ministry Control Center Login' }]} />
+      <Breadcrumbs items={[{ label: 'Facility Admin Login' }]} />
 
       <div className="container max-w-xl mx-auto p-8 fade-in">
-        <div className="glass-card p-10 shadow-2xl border-emerald-200/40 relative overflow-hidden">
+        <div className="glass-card p-10 shadow-2xl border-white/50 relative overflow-hidden">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-teal-100 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-inner">
+            <div className="w-16 h-16 bg-blue-100 rounded-3xl flex items-center justify-center mx-auto mb-4 shadow-inner">
               <Image src="/logo.png" alt="MedQR Logo" width={40} height={40} />
             </div>
-            <h1 className="text-2xl font-black text-gray-900 mb-2">Ministry Control Center</h1>
-            <p className="text-sm text-muted">Ministry of Health National Governance Access</p>
+            <h1 className="text-2xl font-black text-gray-900 mb-2">Facility Administration</h1>
+            <p className="text-sm text-muted">Authorized Medical Institution Control Portal</p>
           </div>
 
           {error && (
@@ -63,39 +63,39 @@ export default function MinistryLoginPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="form-group">
               <label className="form-label flex items-center gap-2">
-                <User className="w-4 h-4 text-teal-600" /> Government Official ID
+                <Building2 className="w-4 h-4 text-blue-600" /> Institution Name
               </label>
               <input
                 type="text"
                 required
                 className="input-modern"
-                placeholder="superadmin"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                placeholder="E.g., Mulago National Hospital"
+                value={institutionName}
+                onChange={(e) => setInstitutionName(e.target.value)}
               />
             </div>
 
             <div className="form-group">
               <label className="form-label flex items-center gap-2">
-                <Lock className="w-4 h-4 text-teal-600" /> Secure Passcode
+                <ShieldCheck className="w-4 h-4 text-blue-600" /> Portal Key
               </label>
               <input
-                type="password"
+                type="text"
                 required
                 className="input-modern"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                placeholder="E.g., MULAGO-KEY-2025"
+                value={portalKey}
+                onChange={(e) => setPortalKey(e.target.value)}
               />
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full btn btn-primary py-4 text-lg font-bold flex items-center justify-center gap-3 shadow-xl bg-teal-600 hover:bg-teal-700"
+              className="w-full btn btn-primary py-4 text-lg font-bold flex items-center justify-center gap-3 shadow-xl"
             >
-              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldAlert className="w-5 h-5" />}
-              Authenticate Ministry Credentials
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ShieldCheck className="w-5 h-5" />}
+              Access Facility Portal
             </button>
           </form>
 
@@ -103,8 +103,8 @@ export default function MinistryLoginPage() {
             <Link href="/auth/login" className="text-muted hover:text-gray-900 font-semibold">
               Clinical Staff Login →
             </Link>
-            <Link href="/institution/login" className="text-muted hover:text-gray-900 font-semibold">
-              Facility Admin Portal →
+            <Link href="/ministry/login" className="text-muted hover:text-gray-900 font-semibold">
+              Ministry Portal →
             </Link>
           </div>
         </div>

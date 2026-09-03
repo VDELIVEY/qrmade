@@ -44,15 +44,13 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const episodeId = searchParams.get('episodeId');
 
-    if (!episodeId) {
-      return NextResponse.json({ error: 'Episode ID required' }, { status: 400 });
-    }
-
-    const { data, error } = await supabase
+    let query = supabase
       .from('prescriptions')
-      .select('*, staff!prescriptions_doctor_id_fkey(doctor_name: full_name)')
-      .eq('episode_id', episodeId)
-      .order('created_at', { ascending: false });
+      .select('*, staff!prescriptions_doctor_id_fkey(doctor_name: full_name)');
+    if (episodeId) query = query.eq('episode_id', episodeId);
+    query = query.order('created_at', { ascending: false });
+
+    const { data, error } = await query;
 
     if (error) {
       return NextResponse.json({ error: 'Database error: ' + error.message }, { status: 500 });

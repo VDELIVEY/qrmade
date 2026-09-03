@@ -11,6 +11,8 @@ import {
   Loader2,
   Scan,
   Stethoscope,
+  ShieldCheck,
+  BellRing,
 } from "lucide-react";
 import { useApp, type UserRole } from "@/lib/context";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -26,6 +28,9 @@ type Citizen = {
   underlying_conditions?: string | null;
   medical_history?: string | null;
   allergies?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  dob?: string | null;
 };
 
 type Episode = {
@@ -66,6 +71,9 @@ function PatientPortalCitizen() {
   const [citizen, setCitizen] = useState<Citizen | null>(null);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [episodeDetails, setEpisodeDetails] = useState<Record<string, EpisodeDetails>>({});
+  const [showPinModal, setShowPinModal] = useState(false);
+  const [pin, setPin] = useState("");
+  const [scanAlertSent, setScanAlertSent] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,6 +143,50 @@ function PatientPortalCitizen() {
     };
   }, [qr]);
 
+  // Show PIN modal once citizen is loaded
+  useEffect(() => {
+    if (citizen && !showPinModal && !scanAlertSent) {
+      setShowPinModal(true);
+    }
+  }, [citizen, showPinModal, scanAlertSent]);
+
+  const confirmPinAndAccess = async () => {
+    if (!citizen) return;
+    if (!pin || pin.length < 4) {
+      setError("Please enter a valid 4-digit Security PIN");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const verifyRes = await fetch('/api/patients/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId: citizen.id, pin }),
+      });
+      const verifyJson = await verifyRes.json();
+      if (!verifyRes.ok) throw new Error(verifyJson?.error || 'PIN verification failed');
+
+      const notifRes = await fetch('/api/scan-notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: citizen.id,
+          recipientPhone: citizen.phone || null,
+          recipientEmail: citizen.email || null,
+        }),
+      });
+      const notifJson = await notifRes.json();
+
+      setShowPinModal(false);
+      setScanAlertSent(true);
+    } catch (e: any) {
+      setError(e?.message || "PIN verification failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="container max-w-4xl mx-auto p-8 fade-in">
@@ -185,11 +237,39 @@ function PatientPortalCitizen() {
       />
 
       <div className="container max-w-4xl mx-auto p-8 fade-in">
+        {/* Scan Notification Toast */}
+        {scanAlertSent && (
+          <div
+            className="fade-in"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '1rem 1.25rem',
+              borderRadius: '14px',
+              background: 'linear-gradient(135deg, rgba(16,185,129,0.12), rgba(8,127,121,0.08))',
+              border: '1px solid rgba(16,185,129,0.3)',
+              color: '#047857',
+              fontWeight: 700,
+              marginBottom: '1.5rem',
+            }}
+          >
+            <BellRing className="w-5 h-5 flex-shrink-0" />
+            <div>
+              <div>Scan notification sent via SMS & Email to patient</div>
+              <div style={{ fontSize: 12, fontWeight: 500, opacity: 0.8, marginTop: 2 }}>
+                The citizen has been alerted that their health pass was accessed.
+              </div>
+            </div>
+            <CheckCircle2 className="w-5 h-5 flex-shrink-0 ml-auto" />
+          </div>
+        )}
+
         {/* Page Header Banner */}
         <div className="page-header-banner">
           <h1 className="page-header-title">{citizen.first_name} {citizen.last_name}</h1>
           <p className="page-header-subtitle">
-            Longitudinal Health Profile &amp; Encrypted Episode History &nbsp;·&nbsp; QR: <span className="font-mono">{citizen.qr_code}</span>
+            Longitudinal Health Profile & Encrypted Episode History &nbsp;·&nbsp; QR: <span className="font-mono">{citizen.qr_code}</span>
           </p>
         </div>
 
@@ -203,7 +283,7 @@ function PatientPortalCitizen() {
             </div>
 
             <div style={{ marginTop: 10 }} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <MiniStat label="Age" value={citizen.age ?? "—"} />
+              <MiniStat label="Date of Birth" value={citizen.dob ? new Date(citizen.dob).toLocaleDateString() : "—"} />
               <MiniStat label="Gender" value={citizen.gender ?? "—"} />
               <MiniStat label="Blood Type" value={citizen.blood_type ?? "—"} />
             </div>
@@ -342,6 +422,109 @@ function PatientPortalCitizen() {
           For privacy, detailed diagnosis/lab notes may require institutional authorization.
         </div>
       </div>
+
+      {/* ── 4-Digit Security PIN Modal ─────────────────────────────── */}
+      {showPinModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,23,42,0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => setShowPinModal(false)}
+        >
+          <div
+            className="glass-card fade-in"
+            style={{
+              width: '100%',
+              maxWidth: '400px',
+              padding: '2rem',
+              borderRadius: '20px',
+              boxShadow: '0 20px 50px rgba(15,23,42,0.3)',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: '56px',
+                height: '56px',
+                borderRadius: '16px',
+                background: 'var(--primary-gradient)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 1rem',
+                color: 'white',
+                boxShadow: '0 8px 20px rgba(8,127,121,0.25)',
+              }}
+            >
+              <ShieldCheck size={28} />
+            </div>
+
+            <h3 style={{ margin: 0, marginBottom: '0.5rem' }}>Security Verification</h3>
+            <p className="text-muted" style={{ fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              Enter the patient's 4-digit security PIN to access their medical record.
+            </p>
+
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              autoFocus
+              className="input-modern"
+              style={{
+                textAlign: 'center',
+                fontSize: '2rem',
+                fontWeight: 900,
+                letterSpacing: '0.5em',
+                padding: '0.75rem',
+                fontFamily: 'monospace',
+              }}
+              placeholder="••••"
+              value={pin}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                setPin(val);
+                setError('');
+              }}
+            />
+
+            {error && (
+              <div className="alert-modern alert-error mt-4" style={{ fontSize: '0.8rem' }}>
+                <AlertCircle size={16} />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem' }}>
+              <button
+                className="btn btn-secondary flex-1"
+                onClick={() => {
+                  setShowPinModal(false);
+                  setPin('');
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary flex-1"
+                onClick={confirmPinAndAccess}
+                disabled={pin.length < 4 || loading}
+              >
+                {loading ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+                {loading ? 'Verifying...' : 'Verify & Access'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -376,4 +559,3 @@ function TextField({ title, value }: { title: string; value: any }) {
     </div>
   );
 }
-

@@ -28,6 +28,9 @@ function CashierContent() {
   const [paymentMethod, setPaymentMethod] = useState('');
   const [loading, setLoading] = useState(false);
   const [collectUGOpen, setCollectUGOpen] = useState(false);
+  const [paymentType, setPaymentType] = useState('consultation');
+  const [customAmount, setCustomAmount] = useState('1000');
+  const [customDescription, setCustomDescription] = useState('');
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -65,6 +68,7 @@ function CashierContent() {
 
   const handlePayment = async () => {
     if (!paymentMethod || !episodeData) return;
+    const amount = Number(customAmount) || 1000;
     if (paymentMethod === 'mobile') {
       setCollectUGOpen(true);
       return;
@@ -76,9 +80,10 @@ function CashierContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           episodeId: episodeData.id,
-          amount: 1000,
+          amount,
           method: paymentMethod,
-          type: 'consultation'
+          type: paymentType,
+          description: customDescription || `${paymentType} payment for episode ${episodeData.episode_code}`,
         }),
       });
       if (res.ok) {
@@ -101,6 +106,9 @@ function CashierContent() {
     setPaymentMethod('');
     setCollectUGOpen(false);
     setActiveEpisode(null);
+    setPaymentType('consultation');
+    setCustomAmount('1000');
+    setCustomDescription('');
   };
 
   return (
@@ -194,18 +202,55 @@ function CashierContent() {
             <div className="absolute top-0 right-0 p-4 opacity-10">
               <Wallet className="w-24 h-24" />
             </div>
-            <div className="flex justify-between items-center mb-6">
-              <span className="text-gray-400 font-bold uppercase tracking-widest text-xs">Service Charge</span>
-              <span className="text-gray-400 font-bold uppercase tracking-widest text-xs">Amount</span>
+            
+            <div className="form-group mb-6">
+              <label className="text-gray-400 font-bold uppercase tracking-widest text-xs block mb-3">Payment Type</label>
+              <select
+                value={paymentType}
+                onChange={(e) => {
+                  setPaymentType(e.target.value);
+                  if (e.target.value === 'consultation') setCustomAmount('1000');
+                  else if (e.target.value === 'referral') setCustomAmount('5000');
+                  else if (e.target.value === 'lab') setCustomAmount('15000');
+                  else setCustomAmount('1000');
+                }}
+                className="w-full p-4 rounded-xl bg-white/10 border border-white/20 text-white font-bold"
+              >
+                <option value="consultation" className="text-gray-900">Consultation Fee</option>
+                <option value="referral" className="text-gray-900">Referral Fee</option>
+                <option value="lab" className="text-gray-900">Laboratory Test</option>
+                <option value="pharmacy" className="text-gray-900">Pharmacy</option>
+                <option value="other" className="text-gray-900">Other</option>
+              </select>
             </div>
-            <div className="flex justify-between items-center mb-4">
-              <span className="text-lg font-medium">Standard Consultation</span>
-              <span className="text-2xl font-bold">UGX 1,000</span>
+
+            <div className="form-group mb-6">
+              <label className="text-gray-400 font-bold uppercase tracking-widest text-xs block mb-3">Amount (UGX)</label>
+              <input
+                type="number"
+                value={customAmount}
+                onChange={(e) => setCustomAmount(e.target.value)}
+                className="w-full p-4 rounded-xl bg-white/10 border border-white/20 text-white font-bold text-2xl"
+                min="0"
+                step="1"
+              />
             </div>
+
+            <div className="form-group mb-6">
+              <label className="text-gray-400 font-bold uppercase tracking-widest text-xs block mb-3">Description (Optional)</label>
+              <input
+                type="text"
+                value={customDescription}
+                onChange={(e) => setCustomDescription(e.target.value)}
+                className="w-full p-4 rounded-xl bg-white/10 border border-white/20 text-white font-bold"
+                placeholder="e.g., Referral to Specialist, Malaria RDT..."
+              />
+            </div>
+
             <div className="border-t border-white/10 my-6"></div>
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold text-amber-400 uppercase tracking-wider">Total Due</span>
-              <span className="text-4xl font-black text-amber-400">UGX 1,000</span>
+              <span className="text-4xl font-black text-amber-400">UGX {Number(customAmount || 0).toLocaleString()}</span>
             </div>
           </div>
 
@@ -236,7 +281,7 @@ function CashierContent() {
           <button 
             className="w-full btn btn-primary py-5 text-xl font-black flex items-center justify-center gap-3 shadow-2xl hover:shadow-glass" 
             onClick={handlePayment} 
-            disabled={!paymentMethod || loading}
+            disabled={!paymentMethod || loading || !customAmount || Number(customAmount) <= 0}
           >
             {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <ShieldCheck className="w-6 h-6" />}
             Authorize Payment

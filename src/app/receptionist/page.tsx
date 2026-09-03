@@ -6,7 +6,7 @@ import { useApp } from "@/lib/context";
 import { 
   Scan, User, Calendar, Activity, 
   ShieldAlert, CheckCircle2, ArrowRight,
-  RefreshCw, Loader2, Search, HeartPulse
+  RefreshCw, Loader2, Search, HeartPulse, Stethoscope
 } from "lucide-react";
 import RoleGuard from "@/components/RoleGuard";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -26,6 +26,24 @@ function ReceptionistContent() {
   const [patientData, setPatientData] = useState<any>(null);
   const [episodeCode, setEpisodeCode] = useState('');
   const [loading, setLoading] = useState(false);
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [assignedDoctorId, setAssignedDoctorId] = useState('');
+
+  // Load available doctors for assignment
+  useEffect(() => {
+    const loadDoctors = async () => {
+      try {
+        const res = await fetch('/api/staff');
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.staff)) {
+          setDoctors(data.staff.filter((s: any) => s.occupation === 'doctor' && s.is_active !== false));
+        }
+      } catch {
+        setDoctors([]);
+      }
+    };
+    loadDoctors();
+  }, []);
 
   useEffect(() => {
     if (step !== 'scan') return;
@@ -84,7 +102,9 @@ function ReceptionistContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           patientId: patientData.id, 
-          institutionId: institutionId || 'demo-inst-1' 
+          institutionId: institutionId || 'demo-inst-1',
+          assignedDoctorId: assignedDoctorId || null,
+          chiefComplaint: ''
         }),
       });
       const data = await res.json();
@@ -107,6 +127,7 @@ function ReceptionistContent() {
     setScannedQR('');
     setEpisodeCode('');
     setPatientData(null);
+    setAssignedDoctorId('');
     setActiveEpisode(null);
   };
 
@@ -165,10 +186,10 @@ function ReceptionistContent() {
                   <span className="text-gray-500 font-medium">Name</span>
                   <span className="font-bold text-gray-900">{patientData.first_name} {patientData.last_name}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500 font-medium">Age / Gender</span>
-                  <span className="font-bold text-gray-900">{patientData.age}Y / {patientData.gender}</span>
-                </div>
+                  <div className="flex justify-between">
+                   <span className="text-gray-500 font-medium">DOB / Gender</span>
+                   <span className="font-bold text-gray-900">{patientData.dob ? new Date(patientData.dob).toLocaleDateString() : '—'} / {patientData.gender}</span>
+                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500 font-medium">Blood Group</span>
                   <span className="font-bold text-primary">{patientData.blood_type || 'Unknown'}</span>
@@ -192,6 +213,30 @@ function ReceptionistContent() {
                 </div>
               )}
             </div>
+          </div>
+
+          <div className="mb-6">
+            <label className="form-label flex items-center gap-2">
+              <Stethoscope className="w-4 h-4 text-emerald-600" /> Assign Doctor
+            </label>
+            <select
+              className="select-modern"
+              value={assignedDoctorId}
+              onChange={(e) => setAssignedDoctorId(e.target.value)}
+              disabled={loading}
+            >
+              <option value="">— Select Doctor (optional) —</option>
+              {doctors.map((doc: any) => (
+                <option key={doc.id} value={doc.id}>
+                  {doc.full_name} {doc.doctor_services?.length ? `(${doc.doctor_services.join(', ')})` : ''}
+                </option>
+              ))}
+            </select>
+            {doctors.length === 0 && (
+              <div className="text-muted" style={{ fontSize: 12, marginTop: 6 }}>
+                No doctors available. The episode will be unassigned.
+              </div>
+            )}
           </div>
 
           <button 

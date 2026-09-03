@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useApp } from "@/lib/context";
 import { 
   Stethoscope, Activity, FileText, Beaker, Pill, 
   History, Search, Loader2, Save, Plus, AlertCircle,
-  CheckCircle2, Clock, User, ShieldAlert
+  CheckCircle2, Clock, User, ShieldAlert, ArrowRightLeft, X, Menu
 } from "lucide-react";
 import RoleGuard from "@/components/RoleGuard";
 import DoctorEpisodesTable from "./DoctorEpisodesTable";
@@ -21,13 +21,36 @@ export default function DoctorPortal() {
 }
 
 function DoctorContent() {
-  const { staffId } = useApp();
+  const { staffId, institutionId } = useApp();
   const [activeTab, setActiveTab] = useState('history');
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [episodeCode, setEpisodeCode] = useState('');
   const [episode, setEpisode] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState("");
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [referralDoctorId, setReferralDoctorId] = useState('');
+  const [referralNote, setReferralNote] = useState('');
+  const [doctors, setDoctors] = useState<any[]>([]);
+  const [referralSaving, setReferralSaving] = useState(false);
+  const diagnosisRef = useRef<HTMLTextAreaElement>(null);
+
+  // Load available doctors for referral
+  useEffect(() => {
+    const loadDoctors = async () => {
+      try {
+        const res = await fetch('/api/staff');
+        const data = await res.json();
+        if (res.ok && Array.isArray(data.staff)) {
+          setDoctors(data.staff.filter((s: any) => s.occupation === 'doctor' && s.id !== staffId && s.is_active !== false));
+        }
+      } catch {
+        setDoctors([]);
+      }
+    };
+    loadDoctors();
+  }, [staffId]);
 
   // Form states
   const [diagnosisNotes, setDiagnosisNotes] = useState("");
@@ -65,6 +88,12 @@ const fetchDiagnosis = async (id: string) => {
       if (data.diagnoses?.[0]) {
         setDiagnosisNotes(data.diagnoses[0].notes);
       }
+      setTimeout(() => {
+        if (diagnosisRef.current) {
+          diagnosisRef.current.style.height = 'auto';
+          diagnosisRef.current.style.height = diagnosisRef.current.scrollHeight + 'px';
+        }
+      }, 50);
     } catch (err) {}
   };
 
@@ -163,6 +192,37 @@ const fetchDiagnosis = async (id: string) => {
     setTimeout(() => setSuccessMsg(""), 3000);
   };
 
+  const handleReferral = async () => {
+    if (!episode || !referralDoctorId) return;
+    setReferralSaving(true);
+    try {
+      const res = await fetch('/api/episodes', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          episodeId: episode.id,
+          status: 'in_consultation',
+          assignedDoctorId: referralDoctorId,
+          referralNote: referralNote || null,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setEpisode(data.episode);
+        setShowReferralModal(false);
+        setReferralDoctorId('');
+        setReferralNote('');
+        showSuccess(`Patient referred to ${doctors.find((d: any) => d.id === referralDoctorId)?.full_name || 'specialist'}.`);
+      } else {
+        alert(data.error || 'Referral failed');
+      }
+    } catch {
+      alert('Failed to send referral');
+    } finally {
+      setReferralSaving(false);
+    }
+  };
+
   if (!episode) {
     return (
       <div>
@@ -177,7 +237,7 @@ const fetchDiagnosis = async (id: string) => {
           </div>
 
           <DoctorEpisodesTable
-            institutionId={null}
+            institutionId={institutionId}
             staffId={staffId}
             onSelect={(ep: any) => {
               setEpisode(ep);
@@ -207,24 +267,40 @@ const fetchDiagnosis = async (id: string) => {
           </div>
           <div>
             <div className="text-3xl font-black text-gray-900 mb-1">{episode.patients.first_name} {episode.patients.last_name}</div>
-            <div className="flex items-center gap-3 text-muted font-bold text-sm">
-              <span className="bg-gray-100 px-3 py-1 rounded-lg uppercase tracking-widest">{episode.episode_code}</span>
-              <span>•</span>
-              <span>{episode.patients.age} Years</span>
-              <span>•</span>
-              <span className="text-blue-600">{episode.patients.gender}</span>
-              <span>•</span>
-              <span className="bg-red-50 text-red-500 px-2 rounded-lg">{episode.patients.blood_type}</span>
-            </div>
+              <div className="flex items-center gap-3 text-muted font-bold text-sm">
+               <span className="bg-gray-100 px-3 py-1 rounded-lg uppercase tracking-widest">{episode.episode_code}</span>
+               <span>•</span>
+               <span>{episode.patients.dob ? new Date(episode.patients.dob).toLocaleDateString() : '—'}</span>
+               <span>•</span>
+               <span className="text-blue-600">{episode.patients.gender}</span>
+               <span>•</span>
+               <span className="bg-red-50 text-red-500 px-2 rounded-lg">{episode.patients.blood_type}</span>
+             </div>
           </div>
         </div>
         <div className="flex gap-3">
+          <button
+            onClick={() => setShowReferralModal(true)}
+            className="btn"
+            style={{
+              background: 'rgba(139,92,246,0.12)',
+              color: '#7c3aed',
+              border: '1px solid rgba(139,92,246,0.3)',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+            }}
+          >
+            <ArrowRightLeft className="w-4 h-4" />
+            Refer to Specialist
+          </button>
           <button onClick={() => setEpisode(null)} className="btn btn-secondary shadow-sm">
             End Session
           </button>
           <div className="p-3 px-6 bg-emerald-50 text-emerald-700 rounded-2xl font-bold flex items-center gap-2 border border-emerald-100">
              <Clock className="w-4 h-4" />
-             Duration: 12:45
+             In Consultation
           </div>
         </div>
       </div>
@@ -236,15 +312,154 @@ const fetchDiagnosis = async (id: string) => {
         </div>
       )}
 
+      {/* Referral Modal */}
+      {showReferralModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15,23,42,0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => setShowReferralModal(false)}
+        >
+          <div
+            className="glass-card fade-in"
+            style={{
+              width: '100%',
+              maxWidth: '480px',
+              padding: '2rem',
+              borderRadius: '20px',
+              boxShadow: '0 20px 50px rgba(15,23,42,0.3)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <ArrowRightLeft className="text-purple-600" />
+                Refer Patient
+              </h3>
+              <button
+                onClick={() => setShowReferralModal(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="mb-4">
+              <div className="text-sm font-bold mb-1">
+                {episode?.patients?.first_name} {episode?.patients?.last_name}
+              </div>
+              <div className="text-muted text-xs font-mono">{episode?.episode_code}</div>
+            </div>
+
+            <div className="form-group mb-4">
+              <label className="form-label">Refer to Doctor</label>
+              <select
+                className="select-modern"
+                value={referralDoctorId}
+                onChange={(e) => setReferralDoctorId(e.target.value)}
+              >
+                <option value="">— Select Specialist —</option>
+                {doctors.map((doc: any) => (
+                  <option key={doc.id} value={doc.id}>
+                    {doc.full_name} {doc.doctor_services?.length ? `(${doc.doctor_services.join(', ')})` : ''}
+                  </option>
+                ))}
+              </select>
+              {doctors.length === 0 && (
+                <div className="text-muted" style={{ fontSize: 12, marginTop: 6 }}>
+                  No other doctors available for referral.
+                </div>
+              )}
+            </div>
+
+            <div className="form-group mb-6">
+              <label className="form-label">Referral Note (optional)</label>
+              <textarea
+                className="textarea-modern"
+                rows={3}
+                placeholder="Reason for referral, clinical summary..."
+                value={referralNote}
+                onChange={(e) => setReferralNote(e.target.value)}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button
+                className="btn btn-secondary flex-1"
+                onClick={() => setShowReferralModal(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn btn-primary flex-1"
+                onClick={handleReferral}
+                disabled={referralSaving || !referralDoctorId}
+              >
+                {referralSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRightLeft className="w-4 h-4" />}
+                Send Referral
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Navigation Sidebar */}
-        <div className="flex flex-col gap-3">
-  <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<History />} label="Medical History" />
-  <TabButton active={activeTab === 'diagnosis'} onClick={() => setActiveTab('diagnosis')} icon={<FileText />} label="Diagnosis & Notes" />
+        {/* Mobile Sidebar Toggle */}
+        <button
+          onClick={() => setMobileSidebarOpen(true)}
+          className="lg:hidden fixed bottom-6 right-6 z-40 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-colors"
+          aria-label="Open navigation menu"
+        >
+          <Menu size={24} />
+        </button>
+
+        {/* Navigation Sidebar - Desktop */}
+        <div className="hidden lg:flex flex-col gap-3 lg:sticky lg:top-24 lg:self-start">
+          <TabButton active={activeTab === 'history'} onClick={() => setActiveTab('history')} icon={<History />} label="Medical History" />
+          <TabButton active={activeTab === 'diagnosis'} onClick={() => setActiveTab('diagnosis')} icon={<FileText />} label="Diagnosis & Notes" />
           <TabButton active={activeTab === 'tests'} onClick={() => setActiveTab('tests')} icon={<Beaker />} label="Test Orders" />
           <TabButton active={activeTab === 'lab-results'} onClick={() => setActiveTab('lab-results')} icon={<CheckCircle2 />} label="Lab Results" />
-  <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<Pill />} label="Prescriptions" />
+          <TabButton active={activeTab === 'prescription'} onClick={() => setActiveTab('prescription')} icon={<Pill />} label="Prescriptions" />
         </div>
+
+        {/* Mobile Sidebar Drawer */}
+        {mobileSidebarOpen && (
+          <>
+            <div
+              className="lg:hidden fixed inset-0 bg-black/30 backdrop-blur-sm z-40"
+              onClick={() => setMobileSidebarOpen(false)}
+            />
+            <div className="lg:hidden fixed top-0 right-0 bottom-0 w-72 bg-white shadow-xl z-50 mobile-sidebar-drawer">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-bold text-lg">Navigation</h3>
+                  <button
+                    onClick={() => setMobileSidebarOpen(false)}
+                    className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                    aria-label="Close navigation menu"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+                <div className="flex flex-col gap-3">
+                  <TabButton active={activeTab === 'history'} onClick={() => { setActiveTab('history'); setMobileSidebarOpen(false); }} icon={<History />} label="Medical History" />
+                  <TabButton active={activeTab === 'diagnosis'} onClick={() => { setActiveTab('diagnosis'); setMobileSidebarOpen(false); }} icon={<FileText />} label="Diagnosis & Notes" />
+                  <TabButton active={activeTab === 'tests'} onClick={() => { setActiveTab('tests'); setMobileSidebarOpen(false); }} icon={<Beaker />} label="Test Orders" />
+                  <TabButton active={activeTab === 'lab-results'} onClick={() => { setActiveTab('lab-results'); setMobileSidebarOpen(false); }} icon={<CheckCircle2 />} label="Lab Results" />
+                  <TabButton active={activeTab === 'prescription'} onClick={() => { setActiveTab('prescription'); setMobileSidebarOpen(false); }} icon={<Pill />} label="Prescriptions" />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* Content Area */}
         <div className="lg:col-span-3">
@@ -303,10 +518,18 @@ const fetchDiagnosis = async (id: string) => {
                 <div className="form-group mb-8">
                   <label className="form-label">Diagnosis & Clinical Notes *</label>
                   <textarea 
+                    ref={diagnosisRef}
                     value={diagnosisNotes}
-                    onChange={e => setDiagnosisNotes(e.target.value)}
+                    onChange={e => {
+                      setDiagnosisNotes(e.target.value);
+                      if (diagnosisRef.current) {
+                        diagnosisRef.current.style.height = 'auto';
+                        diagnosisRef.current.style.height = diagnosisRef.current.scrollHeight + 'px';
+                      }
+                    }}
                     placeholder="Enter thorough clinical observations, diagnosis, and plan..." 
-                    className="textarea-modern h-64 p-6"
+                    className="textarea-modern w-full p-6"
+                    style={{ minHeight: '8rem', resize: 'vertical' }}
                   />
                 </div>
                 <button 
@@ -473,14 +696,14 @@ function TabButton({ active, onClick, icon, label }: any) {
   return (
     <button 
       onClick={onClick}
-      className={`p-6 rounded-3xl flex items-center gap-4 font-bold transition-all border-2 ${
+      className={`p-4 rounded-2xl flex items-center gap-3 font-bold transition-all border-2 ${
         active 
-          ? 'bg-blue-600 text-white border-blue-600 shadow-xl -translate-r-2' 
+          ? 'bg-blue-600 text-white border-blue-600 shadow-lg -translate-r-1' 
           : 'bg-white/50 text-gray-500 border-white/50 hover:bg-white hover:border-blue-100 hover:text-gray-700'
       }`}
     >
       <div className={active ? 'text-white' : 'text-primary'}>{icon}</div>
-      {label}
+      <span className="text-sm">{label}</span>
     </button>
   );
 }

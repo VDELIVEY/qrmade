@@ -20,6 +20,7 @@ interface Episode {
     last_name: string;
     age: number;
     gender: string;
+    dob?: string | null;
   } | null;
 }
 
@@ -185,8 +186,8 @@ function PharmacyContent() {
                 </div>
                 <div className="space-y-3 pt-6 border-t border-pink-50">
                    <div className="flex justify-between text-sm">
-                     <span className="text-gray-500">Age</span>
-                     <span className="font-bold text-gray-800">{selectedEpisode.patients?.age}Y</span>
+                      <span className="text-gray-500">Date of Birth</span>
+                      <span className="font-bold text-gray-800">{selectedEpisode.patients?.dob ? new Date(selectedEpisode.patients.dob).toLocaleDateString() : '—'}</span>
                    </div>
                    <div className="flex justify-between text-sm">
                      <span className="text-gray-500">Gender</span>
