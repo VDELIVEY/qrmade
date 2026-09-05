@@ -103,31 +103,31 @@ function LogisticsContent() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
         <MetricCard 
           icon={<TrendingUp className="w-6 h-6 text-primary" />} 
-          label="Disease Growth" 
-          value={data ? 'Live' : '0'} 
+          label="Registered Citizens" 
+          value={data?.totalCitizens?.toLocaleString() || '—'} 
           trend="up"
-          subLabel="real data"
+          subLabel="national registry"
         />
         <MetricCard 
           icon={<Pill className="w-6 h-6 text-green-500" />} 
-          label="Drug Fulfillment" 
-          value={data ? 'Live' : '0'} 
+          label="Drugs Dispensed" 
+          value={data?.drugsDispensed?.toLocaleString() || '—'} 
           trend="up"
-          subLabel="real data"
+          subLabel="all time"
         />
         <MetricCard 
           icon={<Users className="w-6 h-6 text-amber-500" />} 
-          label="Doc/Patient Ratio" 
-          value="1:1240" 
-          trend="down"
-          subLabel="Critical threshold"
+          label="Healthcare Facilities" 
+          value={data?.totalInstitutions?.toLocaleString() || '—'} 
+          trend="up"
+          subLabel="registered"
         />
         <MetricCard 
           icon={<Activity className="w-6 h-6 text-red-500" />} 
-          label="Active Episodes" 
-          value={data?.activeEpisodesToday.toLocaleString() || "0"} 
+          label="Active Episodes Today" 
+          value={data?.activeEpisodesToday?.toLocaleString() || '0'} 
           trend="up"
-          subLabel="Live monitoring"
+          subLabel="live monitoring"
         />
       </div>
 

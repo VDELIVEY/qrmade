@@ -64,6 +64,10 @@ function RegisterCitizenContent() {
   // ─── Camera helpers ──────────────────────────────────────────────
   const startCamera = useCallback(async () => {
     setCameraError("");
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setCameraError("Camera API not supported on this browser. Please use HTTPS or upload a photo instead.");
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
@@ -71,11 +75,29 @@ function RegisterCitizenContent() {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        // Wait for metadata before calling play to avoid AbortError on slow streams
+        await new Promise<void>((resolve) => {
+          const vid = videoRef.current!;
+          if (vid.readyState >= 1) {
+            resolve();
+          } else {
+            vid.onloadedmetadata = () => resolve();
+          }
+        });
         await videoRef.current.play();
       }
       setCameraActive(true);
-    } catch {
-      setCameraError("Camera not available. Please upload a photo instead.");
+    } catch (err: any) {
+      const name = err?.name || '';
+      if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+        setCameraError("Camera access denied. Please allow camera permissions in your browser settings, then try again.");
+      } else if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        setCameraError("No camera found on this device. Please upload a photo instead.");
+      } else if (name === 'NotReadableError') {
+        setCameraError("Camera is in use by another application. Close it and try again, or upload a photo.");
+      } else {
+        setCameraError("Camera not available. Please upload a photo instead.");
+      }
     }
   }, []);
 

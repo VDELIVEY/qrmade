@@ -83,19 +83,20 @@ export default function Home() {
                 </Link>
 
                 <Link
-                  href="/patient-portal/scan"
+                  href="/my-health"
                   className="btn"
                   style={{
-                    background: 'var(--surface)',
+                    background: 'linear-gradient(135deg, rgba(8,127,121,0.12), rgba(228,139,57,0.08))',
                     color: 'var(--primary-dark)',
                     border: '2px solid var(--primary)',
                     padding: '0.85rem 1.75rem',
                     fontSize: '1rem',
                     gap: '0.5rem',
+                    fontWeight: 800,
                   }}
                 >
                   <QrCode size={18} />
-                  <span>Scan Citizen QR</span>
+                  <span>View My Health Records</span>
                 </Link>
               </div>
             </div>
@@ -159,7 +160,7 @@ export default function Home() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {/* CARD 1: MINISTRY */}
           <div className="glass-card" style={{ padding: '1.75rem' }}>
             <div
@@ -261,6 +262,49 @@ export default function Home() {
               style={{ color: 'var(--primary-dark)', fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none' }}
             >
               <span>Staff Portal Login</span>
+              <ChevronRight size={16} />
+            </Link>
+          </div>
+
+          {/* CARD 4: PATIENT SELF-SERVICE */}
+          <div
+            className="glass-card"
+            style={{
+              padding: '1.75rem',
+              background: 'linear-gradient(135deg, rgba(8,127,121,0.08) 0%, rgba(228,139,57,0.05) 100%)',
+              border: '2px solid var(--primary)',
+            }}
+          >
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '12px',
+                background: 'var(--primary-gradient)',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '1.25rem',
+                boxShadow: '0 6px 16px rgba(8,127,121,0.3)',
+              }}
+            >
+              <QrCode size={24} />
+            </div>
+
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem' }}>
+              Patient Portal
+            </h3>
+            <p className="text-muted" style={{ fontSize: '0.925rem', marginBottom: '1.5rem', lineHeight: 1.5 }}>
+              Access your own health records, visit history, prescriptions, and lab results — from anywhere, anytime.
+            </p>
+
+            <Link
+              href="/my-health"
+              className="flex items-center gap-2"
+              style={{ color: 'var(--primary-dark)', fontWeight: 800, fontSize: '0.9rem', textDecoration: 'none' }}
+            >
+              <span>View My Records</span>
               <ChevronRight size={16} />
             </Link>
           </div>

@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
+import { config } from './config';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-project.supabase.co';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-anon-key';
-const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = config.supabaseUrl || 'https://placeholder-project.supabase.co';
+const supabaseAnonKey = config.supabaseAnonKey || 'placeholder-anon-key';
+const supabaseServiceRoleKey = config.supabaseServiceRoleKey;
 
 const supabaseOptions = {
   auth: {

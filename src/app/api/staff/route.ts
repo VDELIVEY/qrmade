@@ -57,9 +57,14 @@ export async function POST(request: Request) {
 
 export async function GET(request: Request) {
   try {
-    const auth = requireSession(request, ['admin', 'ministry', 'superadmin']);
+    const auth = requireSession(request, ['admin', 'ministry', 'superadmin', 'receptionist']);
     if (auth.response) return auth.response;
-    const { data, error } = await supabase.from('staff').select('*, institutions(*)');
+    let query = supabase.from('staff').select('id, full_name, occupation, doctor_services, is_active, institution_id');
+    // Receptionists can only see staff from their own institution
+    if (auth.session.institutionId) {
+      query = query.eq('institution_id', auth.session.institutionId);
+    }
+    const { data, error } = await query;
     if (error) {
       return NextResponse.json({ mock: true, staff: [] });
     }

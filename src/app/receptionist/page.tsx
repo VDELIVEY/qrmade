@@ -228,7 +228,7 @@ function ReceptionistContent() {
               <option value="">— Select Doctor (optional) —</option>
               {doctors.map((doc: any) => (
                 <option key={doc.id} value={doc.id}>
-                  {doc.full_name} {doc.doctor_services?.length ? `(${doc.doctor_services.join(', ')})` : ''}
+                  Dr. {doc.full_name}{doc.doctor_services?.length ? ` — ${doc.doctor_services.join(', ')}` : ''}
                 </option>
               ))}
             </select>

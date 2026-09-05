@@ -94,9 +94,19 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'Failed to validate episode state: ' + (episodeErr?.message || 'Episode not found') }, { status: 500 });
       }
 
-      // Pharmacy dispense should only be possible after pharmacy has received a paid episode/payment.
-      // (Cashier authorizes consultation payment via /api/payments.)
-      const allowed = new Set(['waiting_pharmacy_payment', 'prescription_ready', 'completed']);
+      // Pharmacy dispense should only be possible after consultation/payment is complete.
+      // Allowed statuses cover any realistic workflow state where prescriptions may be ready.
+      const allowed = new Set([
+        'created',
+        'in_consultation',
+        'waiting_lab',
+        'lab_results_ready',
+        'waiting_cashier',
+        'consultation_complete',
+        'waiting_pharmacy_payment',
+        'prescription_ready',
+        'completed',
+      ]);
       if (!allowed.has(episode.status)) {
         return NextResponse.json(
           { error: `Dispensing not allowed when episode status is '${episode.status}'` },

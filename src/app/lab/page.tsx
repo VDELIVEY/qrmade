@@ -33,8 +33,19 @@ function LabContent() {
   const fetchQueue = useCallback(async (code?: string) => {
     setLoadingList(true);
     try {
-      // In a real app, this would be an API that returns episodes with pending tests
-      const url = code ? `/api/episodes?code=${encodeURIComponent(code)}` : '/api/episodes?status=waiting_lab';
+      let url: string;
+      if (!code) {
+        url = '/api/episodes?status=waiting_lab';
+      } else {
+        // If it starts with EP, treat as episode code; otherwise search by patient name
+        const trimmed = code.trim();
+        const looksLikeCode = /^EP/i.test(trimmed);
+        if (looksLikeCode) {
+          url = `/api/episodes?code=${encodeURIComponent(trimmed)}`;
+        } else {
+          url = `/api/episodes?name=${encodeURIComponent(trimmed)}`;
+        }
+      }
       const res = await fetch(url);
       const data = await res.json();
       if (res.ok) {
@@ -227,9 +238,9 @@ function LabContent() {
               <Search className="w-5 h-5 absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
               <input 
                 type="text" 
-                placeholder="Locate Investigation by Episode Code..." 
+                placeholder="Search by episode code (e.g. EP-ABC123) or patient name..." 
                 value={searchCode}
-                onChange={e => setSearchCode(e.target.value.toUpperCase())}
+                onChange={e => setSearchCode(e.target.value)}
                 className="input-modern pl-14 py-4 text-lg border-transparent hover:border-gray-100"
               />
             </div>

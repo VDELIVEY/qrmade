@@ -1008,10 +1008,10 @@ p { font-size: 1rem; }
   padding: 2rem;
 }
 
-/* The card itself — CR80 ratio: 85.6mm × 54mm ~ 3.375in × 2.125in */
+/* The card itself — CR80 ratio with auto height to fit content */
 .id-card {
   width: 420px;
-  min-height: 264px;
+  min-height: 320px;
   background: #ffffff;
   border-radius: 18px;
   overflow: hidden;
@@ -1102,6 +1102,7 @@ p { font-size: 1rem; }
   gap: 16px;
   padding: 16px 18px 14px;
   background: #ffffff;
+  align-items: flex-start;
 }
 
 /* ── Photo column ── */

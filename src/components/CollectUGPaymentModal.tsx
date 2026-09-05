@@ -34,7 +34,9 @@ export default function CollectUGPaymentModal({
   const [error, setError] = useState<string | null>(null);
   const [pendingTxnId, setPendingTxnId] = useState<string | null>(null);
   const [isAutoConfirmed, setIsAutoConfirmed] = useState<boolean>(false);
-  const [pollCount, setPollCount] = useState<number>(0);
+  const [manualChecking, setManualChecking] = useState<boolean>(false);
+  const [noTxnId, setNoTxnId] = useState<boolean>(false);
+  const pollCountRef = useRef<number>(0);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -49,13 +51,21 @@ export default function CollectUGPaymentModal({
   useEffect(() => {
     if (!pendingTxnId || isAutoConfirmed) return;
 
+    pollCountRef.current = 0;
+
     pollIntervalRef.current = setInterval(async () => {
       try {
-        setPollCount((prev) => prev + 1);
+        pollCountRef.current += 1;
         const res = await fetch(`/api/payments/verify?transaction_id=${pendingTxnId}`);
         const data = await res.json();
 
-        if (data.success && data.status === 'completed') {
+        if (!res.ok || !data.success) {
+          setError(data.error || 'Payment verification failed. Please contact support.');
+          setLoading(false);
+          return;
+        }
+
+        if (data.status === 'completed') {
           if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
           setIsAutoConfirmed(true);
           setLoading(false);
@@ -71,19 +81,22 @@ export default function CollectUGPaymentModal({
         }
       } catch (err) {
         console.error('Polling error:', err);
+        setError('Network error while checking payment status. Please check your connection.');
       }
-    }, 3000); // Check every 3 seconds
+    }, 3000);
 
     // Stop polling after 2 minutes (40 attempts)
-    if (pollCount > 40) {
+    const timeoutId = setTimeout(() => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
       setLoading(false);
-    }
+      setError('Payment verification timed out. Please check the patient\'s phone or try again.');
+    }, 120000);
 
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+      clearTimeout(timeoutId);
     };
-  }, [pendingTxnId, isAutoConfirmed, pollCount, onSuccess]);
+  }, [pendingTxnId, isAutoConfirmed, onSuccess]);
 
   if (!isOpen) return null;
 
@@ -93,7 +106,8 @@ export default function CollectUGPaymentModal({
     setError(null);
     setIsAutoConfirmed(false);
     setPendingTxnId(null);
-    setPollCount(0);
+    setManualChecking(false);
+    pollCountRef.current = 0;
 
     try {
       const payload: any = {
@@ -130,12 +144,19 @@ export default function CollectUGPaymentModal({
       }
 
       const txnId = data.data?.transaction?.transaction_id;
+      const initialStatus = data.data?.transaction?.status;
 
-      if (txnId) {
-        setPendingTxnId(txnId); // Triggers automatic live polling
-      } else {
+      if (initialStatus === 'completed') {
         setIsAutoConfirmed(true);
         setLoading(false);
+      } else if (txnId) {
+        setPendingTxnId(txnId);
+      } else {
+        setNoTxnId(true);
+        setLoading(false);
+        setError(
+          'Payment was initiated on the patient\'s phone, but we have not yet received a transaction reference from CollectUG. Ask the patient to confirm the PIN prompt, then use "Check Status" below.'
+        );
       }
     } catch (err: any) {
       setError(err.message || 'An error occurred during payment.');
@@ -143,10 +164,68 @@ export default function CollectUGPaymentModal({
     }
   };
 
+  const handleManualCheck = async () => {
+    if (!phoneNumber && !cardNumber) {
+      setError('Enter payment details first before checking status manually.');
+      return;
+    }
+    setManualChecking(true);
+    setError(null);
+    try {
+      const payload: any = {
+        episodeId,
+        amount: Number(amount),
+        customerEmail: customerEmail || undefined,
+      };
+
+      if (paymentMethod === 'momo') {
+        payload.phoneNumber = phoneNumber;
+      } else {
+        payload.cardNumber = cardNumber;
+        payload.cardholderName = cardholderName;
+        payload.expiryDate = expiryDate;
+        payload.cvv = cvv;
+      }
+
+      const res = await fetch('/api/payments/collectug', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Manual status check failed.');
+      }
+
+      const txnId = data.data?.transaction?.transaction_id;
+      const initialStatus = data.data?.transaction?.status;
+
+      if (initialStatus === 'completed') {
+        setIsAutoConfirmed(true);
+        setLoading(false);
+        setPendingTxnId(null);
+      } else if (txnId) {
+        setPendingTxnId(txnId);
+        setError(null);
+      } else {
+        setError(
+          'Still no transaction reference received. If money was deducted from the patient\'s phone, keep this screen open and try again in a few seconds.'
+        );
+      }
+    } catch (err: any) {
+      setError(err.message || 'Manual check failed.');
+    } finally {
+      setManualChecking(false);
+    }
+  };
+
   const handleCloseModal = () => {
     if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     setPendingTxnId(null);
     setIsAutoConfirmed(false);
+    setNoTxnId(false);
     onClose();
   };
 
@@ -185,6 +264,44 @@ export default function CollectUGPaymentModal({
               className="mt-4 w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-lg transition-all"
             >
               Done / Continue
+            </button>
+          </div>
+        ) : noTxnId ? (
+          /* No transaction reference received yet */
+          <div className="p-8 text-center space-y-5">
+            <div className="w-16 h-16 bg-amber-100 dark:bg-amber-950/60 rounded-full flex items-center justify-center mx-auto text-amber-600 dark:text-amber-400">
+              <AlertCircle className="w-10 h-10" />
+            </div>
+            <div>
+              <h4 className="text-lg font-bold text-slate-900 dark:text-white">
+                Awaiting Transaction Reference
+              </h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                The payment prompt was sent to the patient's phone. If money was deducted, do NOT retry — that may double-charge them.
+              </p>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 rounded-xl text-amber-700 dark:text-amber-400 text-xs flex items-start space-x-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleManualCheck}
+              disabled={manualChecking}
+              className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg transition-all flex items-center justify-center space-x-2 disabled:opacity-50"
+            >
+              {manualChecking ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>Checking...</span>
+                </>
+              ) : (
+                <span>Check Payment Status</span>
+              )}
             </button>
           </div>
         ) : pendingTxnId ? (
@@ -387,9 +504,12 @@ export default function CollectUGPaymentModal({
                   <span>Initiating Payment...</span>
                 </>
               ) : (
-                <span>Pay UGX {amount.toLocaleString()} Now</span>
+                <span>Send Payment Prompt to Patient</span>
               )}
             </button>
+            <p className="text-[11px] text-slate-400 text-center">
+              This will send a payment request to the patient's phone. Do not retry if the prompt already appeared — it may double-charge.
+            </p>
           </form>
         )}
       </div>

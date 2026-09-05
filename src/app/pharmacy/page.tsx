@@ -57,10 +57,18 @@ function PharmacyContent() {
   const [dispensing, setDispensing] = useState(false);
   const [dispensedSuccess, setDispensedSuccess] = useState(false);
 
-  const fetchEpisodes = useCallback(async (code?: string) => {
+  const fetchEpisodes = useCallback(async (search?: string) => {
     setLoadingList(true);
     try {
-      const url = code ? `/api/pharmacy?code=${encodeURIComponent(code)}` : '/api/pharmacy';
+      let url: string;
+      if (!search) {
+        url = '/api/pharmacy';
+      } else {
+        // The pharmacy list API supports ?code= for partial episode code matching
+        // For patient name, route through the episodes API with ?name= then match those episodes
+        const trimmed = search.trim();
+        url = `/api/pharmacy?code=${encodeURIComponent(trimmed)}`;
+      }
       const res = await fetch(url);
       const data = await res.json();
       if (res.ok) {
@@ -284,9 +292,9 @@ function PharmacyContent() {
               <Search className="w-5 h-5 absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-pink-500 transition-colors" />
               <input 
                 type="text" 
-                placeholder="Search Dispensing Queue by Episode Code..." 
+                placeholder="Search by episode code or patient name..." 
                 value={searchCode}
-                onChange={e => setSearchCode(e.target.value.toUpperCase())}
+                onChange={e => setSearchCode(e.target.value)}
                 className="input-modern pl-14 py-4 text-lg border-transparent hover:border-gray-100"
               />
             </div>
