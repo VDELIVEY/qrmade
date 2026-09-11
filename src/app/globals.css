@@ -1199,14 +1199,21 @@ p { font-size: 1rem; }
   font-size: 12px;
   font-weight: 700;
   color: #1e293b;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .id-card-mono {
   font-family: 'Courier New', monospace !important;
-  font-size: 10px !important;
-  letter-spacing: 0.5px;
+  font-size: 8px !important;
+  letter-spacing: 0.4px;
   color: #0284c7 !important;
-  word-break: break-all;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .id-card-qr-wrap {
@@ -1313,237 +1320,214 @@ p { font-size: 1rem; }
   display: none;
 }
 
-/* =========================
-   PRINT STYLES
-========================= */
 @media print {
-  /* Hide everything except the card */
-  * { margin: 0 !important; padding: 0 !important; box-sizing: border-box !important; }
-  body { background: white !important; }
-
-  .no-print { display: none !important; }
-
-  body > * { visibility: hidden !important; }
-
-  .print-area,
-  .print-area * {
-    visibility: visible !important;
-    opacity: 1 !important;
-    animation: none !important;
-    transition: none !important;
+  @page {
+    size: 85.725mm 53.975mm;
+    margin: 0;
   }
 
-  /* Single-page print area (register-citizen) */
-  .print-area {
-    position: fixed;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: white;
-    z-index: 9999;
-  }
-
-  /* ── Two-sided card: root wrapper ── */
-  .card-print-root,
-  .card-print-root * {
-    visibility: visible !important;
-    opacity: 1 !important;
-    animation: none !important;
-    transition: none !important;
-  }
-
-  .card-print-root {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    background: white;
-    z-index: 9999;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  /* Each side occupies exactly one printed page */
-  .card-print-page {
-    width: 3.5in;
-    height: 2.2in;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    page-break-after: always;
-    break-after: page;
-    page-break-inside: avoid;
-    break-inside: avoid;
-    background: white;
-    overflow: hidden;
-  }
-
-  .card-print-page:last-child {
-    page-break-after: auto;
-    break-after: auto;
-  }
-
-  /* Back of card — full bleed dark, sized to page */
-  .id-card-back {
-    width: 3.375in !important;
-    height: 2.125in !important;
-    border-radius: 0.15in !important;
-    box-shadow: none !important;
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
-    gap: 10px !important;
   }
 
-  .id-card-back-qr {
-    padding: 8px !important;
-    border-radius: 10px !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+  .no-print {
+    display: none !important;
   }
 
-  .id-card-back canvas,
-  .id-card-back svg {
-    width: 110px !important;
-    height: 110px !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+  .card-print-root {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    background: #ffffff !important;
+  }
+
+  .card-print-page {
+    width: 85.725mm !important;
+    height: 53.975mm !important;
+    min-height: 53.975mm !important;
+    margin: 0 auto !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    overflow: hidden !important;
+  }
+
+  .card-print-page:last-child {
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 
   .id-card-wrapper {
     padding: 0 !important;
   }
 
-  /* Card fits exactly in CR80 (3.375in × 2.125in) */
-  .id-card {
-    width: 3.375in !important;
-    min-height: unset !important;
-    max-height: 2.125in !important;
-    height: 2.125in !important;
-    border-radius: 0.15in !important;
+  .id-card,
+  .id-card-back {
+    width: 85.725mm !important;
+    height: 53.975mm !important;
+    min-height: 53.975mm !important;
+    max-height: 53.975mm !important;
+    border-radius: 4mm !important;
+    border: 0.5mm solid #dfe7f5 !important;
     box-shadow: none !important;
-    border: 1px solid #e2e8f0 !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
-    page-break-inside: avoid;
-    break-inside: avoid;
-  }
-
-  /* Shrink header to save vertical space */
-  .id-card-header {
-    padding: 8px 14px 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
     color-adjust: exact !important;
+  }
+
+  .id-card-header {
+    padding: 5mm 5mm 0 !important;
     flex-shrink: 0 !important;
   }
 
   .id-card-logo-icon {
-    width: 26px !important;
-    height: 26px !important;
+    width: 8mm !important;
+    height: 8mm !important;
   }
 
   .id-card-logo-row {
-    margin-bottom: 6px !important;
-    gap: 7px !important;
+    gap: 2.2mm !important;
+    margin-bottom: 2mm !important;
   }
 
-  .id-card-flag { font-size: 16px !important; }
+  .id-card-org {
+    font-size: 2.4mm !important;
+    letter-spacing: 0.5mm !important;
+  }
+
+  .id-card-title {
+    font-size: 2mm !important;
+  }
+
+  .id-card-flag {
+    font-size: 6mm !important;
+  }
 
   .id-card-label-band {
-    padding: 3px 14px !important;
-    margin: 0 -14px !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
+    margin: 0 -5mm !important;
+    padding: 1.2mm 5mm !important;
+    font-size: 2.2mm !important;
+    letter-spacing: 0.7mm !important;
   }
 
-  /* Card body — tighter padding, photo sized to fit */
   .id-card-body {
     flex: 1 !important;
-    padding: 10px 14px 8px !important;
-    gap: 12px !important;
+    padding: 3.2mm 5mm 2.4mm !important;
+    gap: 3.2mm !important;
     overflow: hidden !important;
   }
 
-  /* Shrink photo so entire card fits in height */
-  .id-card-photo-frame {
-    width: 72px !important;
-    height: 88px !important;
-  }
-
   .id-card-photo-col {
-    gap: 5px !important;
+    gap: 2mm !important;
   }
 
-  /* Info column — reduce gaps */
-  .id-card-info-col {
-    gap: 6px !important;
-  }
-
-  .id-card-name {
-    font-size: 13px !important;
-  }
-
-  .id-card-fields {
-    gap: 4px !important;
-  }
-
-  .id-card-field {
-    padding: 4px 7px !important;
-  }
-
-  .id-card-field-label {
-    font-size: 6.5px !important;
-  }
-
-  .id-card-field-value {
-    font-size: 10px !important;
-  }
-
-  .id-card-mono {
-    font-size: 8.5px !important;
-  }
-
-  .id-card-qr-wrap {
-    margin-top: 0 !important;
-  }
-
-  /* Shrink QR canvas to fit */
-  .id-card-qr-wrap canvas,
-  .id-card-qr-wrap svg {
-    width: 72px !important;
-    height: 72px !important;
-  }
-
-  /* Footer */
-  .id-card-footer {
-    padding: 5px 14px !important;
-    flex-shrink: 0 !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
+  .id-card-photo-frame {
+    width: 24mm !important;
+    height: 30mm !important;
+    border-width: 0.5mm !important;
   }
 
   .id-card-blood-badge {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    font-size: 9px !important;
-    padding: 2px 8px !important;
+    font-size: 2.7mm !important;
+    padding: 0.8mm 2.2mm !important;
   }
 
-  canvas, img, svg {
+  .id-card-info-col {
+    gap: 2mm !important;
+    min-width: 0 !important;
+  }
+
+  .id-card-name {
+    font-size: 4.2mm !important;
+    line-height: 1.2 !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+  }
+
+  .id-card-fields {
+    gap: 1.2mm !important;
+  }
+
+  .id-card-field {
+    padding: 1.2mm 1.8mm !important;
+    border-radius: 2mm !important;
+  }
+
+  .id-card-field-label {
+    font-size: 2mm !important;
+    letter-spacing: 0.25mm !important;
+  }
+
+  .id-card-field-value {
+    font-size: 3mm !important;
+    line-height: 1.2 !important;
+  }
+
+  .id-card-mono {
+    font-size: 2.5mm !important;
+  }
+
+  .id-card-footer {
+    padding: 1.8mm 5mm !important;
+    flex-shrink: 0 !important;
+  }
+
+  .id-card-footer-left,
+  .id-card-footer-right {
+    font-size: 2.4mm !important;
+  }
+
+  .id-card-back {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 3.2mm !important;
+    background: linear-gradient(135deg, #0c2340 0%, #1a4480 60%, #0e7490 100%) !important;
+  }
+
+  .id-card-back-qr {
+    padding: 2.4mm !important;
+    border-radius: 2.5mm !important;
+    box-shadow: none !important;
+  }
+
+  .id-card-back-qr svg,
+  .id-card-back-qr canvas {
+    width: 30mm !important;
+    height: 30mm !important;
     display: block !important;
-    visibility: visible !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
   }
 
-  @page {
-    size: 3.5in 2.2in;
-    margin: 0;
+  .id-card-back-label {
+    font-size: 2.6mm !important;
+    letter-spacing: 0.7mm !important;
+  }
+
+  .id-card-back-id {
+    font-size: 2.2mm !important;
+    letter-spacing: 0.3mm !important;
+  }
+
+  img, svg, canvas {
+    display: block !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }
 
